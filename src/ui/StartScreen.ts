@@ -63,13 +63,13 @@ export class StartScreen extends Container {
 
     this.credit.anchor.set(0.5, 0);
     this.credit.position.set(width / 2, 22);
-    this.credit.scale.set(Math.min(1, (width - 36) / this.credit.width));
+    this.credit.style.fontSize = width < 400 ? 12 : 16;
     this.title.anchor.set(0.5);
     this.title.position.set(width / 2, height / 2 - 72);
-    this.title.scale.set(Math.min(1, (width - 36) / this.title.width));
+    this.title.style.fontSize = width < 400 ? 32 : 42;
     this.subtitle.anchor.set(0.5);
     this.subtitle.position.set(width / 2, height / 2 - 22);
-    this.subtitle.scale.set(Math.min(1, (width - 36) / this.subtitle.width));
+    this.subtitle.style.fontSize = width < 400 ? 14 : 17;
     this.button.anchor.set(0.5);
     this.button.position.set(width / 2, height / 2 + 98);
   }

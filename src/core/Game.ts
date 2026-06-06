@@ -50,6 +50,7 @@ export class Game {
       backgroundColor: Config.backgroundColor,
       antialias: true,
       autoDensity: true,
+      resolution: Math.min(window.devicePixelRatio, 2),
     });
 
     this.app.ticker.stop();
