@@ -9,6 +9,7 @@ import { SpawnSystem } from "../systems/SpawnSystem";
 import { DebugOverlay } from "../ui/DebugOverlay";
 import { GameOverScreen } from "../ui/GameOverScreen";
 import { HUD } from "../ui/HUD";
+import { InfoScreen } from "../ui/InfoScreen";
 import { StartScreen } from "../ui/StartScreen";
 import { MRAID } from "../utils/mraid";
 import { clamp, Vector2 } from "../utils/math";
@@ -26,10 +27,15 @@ export class Game {
   private uiLayer = new Container();
   private background = new Graphics();
   private ground = new Graphics();
-  private hud = new HUD(() => this.pause());
-  private startScreen = new StartScreen(() => this.handleStartScreenAction());
+  private magnetZone = new Graphics();
+  private hud = new HUD(() => this.pause(), () => this.showInfo());
+  private startScreen = new StartScreen(
+    () => this.handleStartScreenAction(),
+    () => this.showInfo(),
+  );
   private gameOverScreen = new GameOverScreen(() => this.start(), () => MRAID.openStore());
   private debugOverlay = new DebugOverlay();
+  private infoScreen = new InfoScreen(() => this.hideInfo());
   private spawnSystem = new SpawnSystem();
   private collisionSystem = new CollisionSystem();
   private scoreSystem = new ScoreSystem();
@@ -39,6 +45,7 @@ export class Game {
   private shakePower = 0;
   private playerTargetScaleX = 1;
   private fps = 60;
+  private statusBeforeInfo: GameStatus = GameStatus.START;
 
   constructor() {
     void this.init();
@@ -59,8 +66,14 @@ export class Game {
     mount.appendChild(this.app.canvas);
 
     this.app.stage.addChild(this.background, this.playLayer, this.uiLayer);
-    this.playLayer.addChild(this.ground, this.player);
-    this.uiLayer.addChild(this.hud, this.startScreen, this.gameOverScreen, this.debugOverlay);
+    this.playLayer.addChild(this.ground, this.magnetZone, this.player);
+    this.uiLayer.addChild(
+      this.hud,
+      this.startScreen,
+      this.gameOverScreen,
+      this.debugOverlay,
+      this.infoScreen,
+    );
     this.startScreen.setMode("start");
 
     this.bindInput();
@@ -110,6 +123,19 @@ export class Game {
   private resume() {
     this.state.status = GameStatus.PLAYING;
     this.startScreen.visible = false;
+  }
+
+  private showInfo() {
+    this.statusBeforeInfo = this.state.status;
+    this.state.status = GameStatus.PAUSED;
+    this.startScreen.visible = false;
+    this.infoScreen.visible = true;
+  }
+
+  private hideInfo() {
+    this.infoScreen.visible = false;
+    this.state.status = this.statusBeforeInfo;
+    this.startScreen.visible = this.state.status === GameStatus.START || this.state.status === GameStatus.PAUSED;
   }
 
   private update(dt: number) {
@@ -183,7 +209,10 @@ export class Game {
     if (this.state.status === GameStatus.PLAYING) {
       this.particleSystem.update(dt);
       this.player.updateJuice(dt, this.playerTargetScaleX);
+      this.updateMagnetZone(dt);
       this.updateShake(dt);
+    } else {
+      this.magnetZone.visible = false;
     }
 
     this.hud.visible = this.state.status === GameStatus.PLAYING;
@@ -251,6 +280,14 @@ export class Game {
     this.ground.clear();
     this.ground.rect(0, height - 36, width, 36);
     this.ground.fill(0x0b1020);
+    this.ground.rect(0, height - 42, width, 6);
+    this.ground.fill(0x35f2a6);
+    for (let x = 18; x < width; x += 54) {
+      this.ground.circle(x, height - 30, 3);
+      this.ground.circle(x + 8, height - 25, 4);
+      this.ground.circle(x + 16, height - 30, 3);
+      this.ground.fill({ color: 0x203a35, alpha: 0.75 });
+    }
 
     this.playerTargetScaleX = isPortrait ? 0.82 : 1;
     this.player.position.set(
@@ -266,6 +303,7 @@ export class Game {
     this.hud.layout(width);
     this.startScreen.layout(width, height);
     this.gameOverScreen.layout(width, height);
+    this.infoScreen.layout(width, height);
     this.debugOverlay.layout(width, height);
   }
 
@@ -318,6 +356,25 @@ export class Game {
     this.playLayer.position.set((Math.random() - 0.5) * power, (Math.random() - 0.5) * power);
   }
 
+  private updateMagnetZone(dt: number) {
+    if (this.state.magnetTimeLeft <= 0) {
+      this.magnetZone.visible = false;
+      return;
+    }
+
+    const pulse = 1 + Math.sin(this.state.elapsed * 8) * 0.035;
+    const radius = Config.game.magnetRadius * pulse;
+    this.magnetZone.visible = true;
+    this.magnetZone.position.set(this.player.x, this.player.y);
+    this.magnetZone.clear();
+    this.magnetZone.circle(0, 0, radius);
+    this.magnetZone.fill({ color: 0x35f2a6, alpha: 0.08 });
+    this.magnetZone.circle(0, 0, radius);
+    this.magnetZone.stroke({ color: 0x35f2a6, width: 2, alpha: 0.45 });
+    this.magnetZone.circle(0, 0, Math.max(12, radius - dt * 240));
+    this.magnetZone.stroke({ color: 0xffffff, width: 1, alpha: 0.18 });
+  }
+
   private getObjectColor(type: ObjectType) {
     switch (type) {
       case ObjectType.BOMB:
@@ -325,11 +382,11 @@ export class Game {
       case ObjectType.GEM_X2:
         return 0x59d8ff;
       case ObjectType.GEM_X10:
-        return 0xff6bd6;
+        return 0x9b5cff;
       case ObjectType.MAGNET:
-        return 0x35f2a6;
-      default:
         return 0xffd166;
+      default:
+        return 0xb6ff3f;
     }
   }
 }

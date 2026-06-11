@@ -10,10 +10,14 @@ export class HUD extends Container {
   private pauseButton = new Container();
   private pauseBg = new Graphics();
   private pauseText = new Text({ text: "PAUSE", style: this.textStyle(14, 0x111827) });
+  private infoButton = new Container();
+  private infoBg = new Graphics();
+  private infoText = new Text({ text: "i", style: this.textStyle(20, 0x111827) });
   private levelPulse = 0;
   private levelBaseX = 0;
+  private hudWidth = 0;
 
-  constructor(onPause: () => void) {
+  constructor(onPause: () => void, onInfo: () => void) {
     super();
     this.pauseButton.eventMode = "static";
     this.pauseButton.cursor = "pointer";
@@ -22,20 +26,28 @@ export class HUD extends Container {
       onPause();
     });
     this.pauseButton.addChild(this.pauseBg, this.pauseText);
+    this.infoButton.eventMode = "static";
+    this.infoButton.cursor = "pointer";
+    this.infoButton.on("pointertap", (event) => {
+      event.stopPropagation();
+      onInfo();
+    });
+    this.infoButton.addChild(this.infoBg, this.infoText);
     this.addChild(
       this.scoreText,
       this.missedText,
       this.multiplierText,
       this.levelText,
       this.powerTimerText,
+      this.infoButton,
       this.pauseButton,
     );
   }
 
   layout(width: number) {
+    this.hudWidth = width;
     this.scoreText.position.set(20, 16);
     this.missedText.position.set(20, 78);
-    this.multiplierText.position.set(20, 50);
     this.levelText.anchor.set(0.5, 0);
     this.levelText.position.set(width / 2, 18);
     this.levelBaseX = width / 2;
@@ -48,16 +60,26 @@ export class HUD extends Container {
     this.pauseText.anchor.set(0.5);
     this.pauseText.position.set(43, 17);
     this.pauseButton.position.set(width - 106, 18);
+
+    this.infoBg.clear();
+    this.infoBg.circle(17, 17, 17);
+    this.infoBg.fill(0xffd166);
+    this.infoText.anchor.set(0.5);
+    this.infoText.position.set(17, 16);
+    this.infoButton.position.set(width - 80, 60);
   }
 
   update(state: State, dt: number) {
     this.scoreText.text = `Score ${state.score}`;
+    this.fitScoreText();
     this.missedText.text = `Missed ${state.missed}/5`;
     this.multiplierText.text = state.multiplier > 1 ? `X${state.multiplier}` : "";
+    this.multiplierText.position.set(this.scoreText.x + this.scoreText.width + 10, 24);
     this.levelText.text = `LEVEL ${state.level}`;
     this.levelText.style.fill = state.levelColor;
     this.powerTimerText.text = this.getPowerTimerText(state);
     this.pauseButton.visible = state.status === GameStatus.PLAYING;
+    this.infoButton.visible = state.status === GameStatus.PLAYING;
 
     if (this.levelPulse > 0) {
       this.levelPulse = Math.max(0, this.levelPulse - dt);
@@ -96,5 +118,17 @@ export class HUD extends Container {
       fontSize,
       fontWeight: "700" as const,
     };
+  }
+
+  private fitScoreText() {
+    const maxWidth = Math.max(92, this.levelBaseX - 46);
+    let fontSize = this.hudWidth < 430 ? 23 : 28;
+
+    this.scoreText.style.fontSize = fontSize;
+
+    while (this.scoreText.width > maxWidth && fontSize > 17) {
+      fontSize -= 1;
+      this.scoreText.style.fontSize = fontSize;
+    }
   }
 }
